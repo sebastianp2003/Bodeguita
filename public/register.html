@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro - Catalogo Seguro</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1><a href="/">Catalogo Seguro</a></h1>
+  </header>
+  <main class="form-container">
+    <h2>Crear cuenta</h2>
+    <form id="registerForm">
+      <input type="text" id="name" placeholder="Nombre completo" required maxlength="80">
+      <input type="email" id="email" placeholder="Correo electronico" required>
+      <input type="password" id="password" placeholder="Contrasena" required minlength="8">
+      <small>Minimo 8 caracteres, con mayuscula, minuscula y numero.</small>
+      <button type="submit">Registrarme</button>
+    </form>
+    <p id="msg" class="error-msg"></p>
+    <p>¿Ya tienes cuenta? <a href="/login.html">Inicia sesion</a></p>
+  </main>
+  <script src="/js/register.js"></script>
+</body>
+</html>

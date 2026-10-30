@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iniciar sesion - Catalogo Seguro</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1><a href="/">Catalogo Seguro</a></h1>
+  </header>
+  <main class="form-container">
+    <h2>Iniciar sesion</h2>
+    <form id="loginForm">
+      <input type="email" id="email" placeholder="Correo electronico" required>
+      <input type="password" id="password" placeholder="Contrasena" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <p id="msg" class="error-msg"></p>
+    <p>¿No tienes cuenta? <a href="/register.html">Registrate aqui</a></p>
+    <p class="hint">Cuenta demo admin: admin@catalogo.test / Admin123!Seguro</p>
+  </main>
+  <script src="/js/login.js"></script>
+</body>
+</html>
