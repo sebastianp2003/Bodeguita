@@ -31,12 +31,10 @@ async function seed() {
       );
     }
 
-    // Buscar administrador existente.
     let admin = db
       .prepare('SELECT id FROM users WHERE email = ?')
       .get(adminEmail);
 
-    // Crear administrador solamente si no existe.
     if (!admin) {
       const hash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
 
@@ -54,7 +52,6 @@ async function seed() {
       console.log('El administrador ya existe. No se modificaron sus datos.');
     }
 
-    // Insertar productos de demostración solamente si no existen.
     const count = db
       .prepare('SELECT COUNT(*) AS total FROM products')
       .get().total;

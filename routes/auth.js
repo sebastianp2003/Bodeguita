@@ -1,12 +1,3 @@
-// routes/auth.js
-// Rutas de registro, login, logout y consulta de sesión.
-// Medidas de seguridad:
-// - A07:2021: protección de autenticación y sesiones.
-// - A03:2021: consultas preparadas contra inyección SQL.
-// - Validación de entradas mediante express-validator.
-// - Contraseñas protegidas con bcrypt.
-// - Limitación de intentos de inicio de sesión.
-
 const express = require('express');
 const bcrypt = require('bcrypt');
 const rateLimit = require('express-rate-limit');
@@ -77,10 +68,6 @@ function createAuthenticatedSession(req, res, user, statusCode = 200) {
     });
   });
 }
-
-// ------------------------------------
-// REGISTRO
-// ------------------------------------
 
 router.post(
   '/register',
@@ -153,10 +140,6 @@ router.post(
     }
   }
 );
-
-// ------------------------------------
-// INICIO DE SESIÓN
-// ------------------------------------
 
 router.post(
   '/login',
@@ -244,10 +227,6 @@ router.post(
   }
 );
 
-// ------------------------------------
-// CERRAR SESIÓN
-// ------------------------------------
-
 router.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -265,10 +244,6 @@ router.post('/logout', (req, res) => {
     });
   });
 });
-
-// ------------------------------------
-// CONSULTAR SESIÓN ACTUAL
-// ------------------------------------
 
 router.get('/session', (req, res) => {
   if (!req.session.userId) {

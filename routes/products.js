@@ -1,13 +1,3 @@
-// routes/products.js
-// Gestión del catálogo de Bodeguita.
-// Lectura pública; creación y eliminación únicamente para administradores.
-//
-// Medidas de seguridad:
-// - A01:2021: control de acceso mediante requireAdmin.
-// - A03:2021: consultas SQL preparadas.
-// - Validación de datos con express-validator.
-// - Manejo controlado de errores.
-
 const express = require('express');
 const {
   body,
@@ -21,10 +11,6 @@ const { requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// ------------------------------------
-// VALIDACIÓN GENERAL
-// ------------------------------------
-
 function handleValidation(req, res, next) {
   const errors = validationResult(req);
 
@@ -37,11 +23,6 @@ function handleValidation(req, res, next) {
 
   next();
 }
-
-// ------------------------------------
-// LISTAR Y BUSCAR PRODUCTOS
-// Acceso público
-// ------------------------------------
 
 router.get(
   '/',
@@ -107,11 +88,6 @@ router.get(
   }
 );
 
-// ------------------------------------
-// DETALLE DE UN PRODUCTO
-// Acceso público
-// ------------------------------------
-
 router.get(
   '/:id(\\d+)',
   [
@@ -147,11 +123,6 @@ router.get(
     }
   }
 );
-
-// ------------------------------------
-// CREAR PRODUCTO
-// Solo administradores
-// ------------------------------------
 
 router.post(
   '/',
@@ -228,11 +199,6 @@ router.post(
     }
   }
 );
-
-// ------------------------------------
-// ELIMINAR PRODUCTO
-// Solo administradores
-// ------------------------------------
 
 router.delete(
   '/:id(\\d+)',

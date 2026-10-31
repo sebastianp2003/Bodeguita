@@ -1,17 +1,3 @@
-
-/*
-==================================================
- BODEGUITA - FUNCIONAMIENTO DEL CATÁLOGO
-==================================================
-
-- Gestión de sesión.
-- Inicio y cierre de sesión.
-- Búsqueda de productos.
-- Visualización del catálogo.
-- Administración de productos.
-- Protección contra XSS mediante textContent.
-*/
-
 const navAuth = document.getElementById('navAuth');
 const productGrid = document.getElementById('productGrid');
 const adminPanel = document.getElementById('adminPanel');
@@ -23,10 +9,6 @@ const productMsg = document.getElementById('productMsg');
 let currentUser = null;
 let searchTimeout = null;
 
-
-/* =========================================
-   UTILIDADES
-========================================= */
 
 function createElement(tag, className, content) {
     const element = document.createElement(tag);
@@ -58,11 +40,6 @@ function showMessage(element, message, type = 'error') {
         ? 'success-msg'
         : 'error-msg';
 }
-
-
-/* =========================================
-   GESTIÓN DE SESIÓN
-========================================= */
 
 async function loadSession() {
 
@@ -161,10 +138,6 @@ async function loadSession() {
 }
 
 
-/* =========================================
-   CERRAR SESIÓN
-========================================= */
-
 async function logout() {
 
     try {
@@ -188,10 +161,6 @@ async function logout() {
     }
 }
 
-
-/* =========================================
-   MOSTRAR PRODUCTOS
-========================================= */
 
 function renderProducts(products) {
 
@@ -293,10 +262,6 @@ function renderProducts(products) {
 }
 
 
-/* =========================================
-   CARGAR PRODUCTOS
-========================================= */
-
 async function loadProducts(query = '') {
 
     if (!productGrid) return;
@@ -349,11 +314,6 @@ async function loadProducts(query = '') {
     }
 }
 
-
-/* =========================================
-   BÚSQUEDA DE PRODUCTOS
-========================================= */
-
 if (searchBtn && searchInput) {
 
     searchBtn.addEventListener('click', () => {
@@ -386,10 +346,6 @@ if (searchBtn && searchInput) {
     });
 }
 
-
-/* =========================================
-   AGREGAR PRODUCTOS - ADMINISTRADOR
-========================================= */
 
 if (productForm) {
 
@@ -498,10 +454,6 @@ if (productForm) {
     });
 }
 
-
-/* =========================================
-   INICIALIZACIÓN
-========================================= */
 
 async function initializeStore() {
 
