@@ -1,26 +1,155 @@
+
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Iniciar sesion - Catalogo Seguro</title>
-<link rel="stylesheet" href="/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="theme-color" content="#173f35">
+    <meta name="description" content="Inicia sesión en Bodeguita.">
+
+    <title>Iniciar sesión | Bodeguita</title>
+
+    <link rel="stylesheet" href="/css/style.css">
 </head>
-<body>
-  <header class="topbar">
-    <h1><a href="/">Catalogo Seguro</a></h1>
-  </header>
-  <main class="form-container">
-    <h2>Iniciar sesion</h2>
-    <form id="loginForm">
-      <input type="email" id="email" placeholder="Correo electronico" required>
-      <input type="password" id="password" placeholder="Contrasena" required>
-      <button type="submit">Entrar</button>
-    </form>
-    <p id="msg" class="error-msg"></p>
-    <p>¿No tienes cuenta? <a href="/register.html">Registrate aqui</a></p>
-    <p class="hint">Cuenta demo admin: admin@catalogo.test / Admin123!Seguro</p>
-  </main>
-  <script src="/js/login.js"></script>
+
+<body class="auth-page login-page">
+
+    <main class="auth-layout">
+
+        <!-- Panel visual -->
+        <section class="auth-banner">
+
+            <a href="/" class="brand-logo">
+                <span class="brand-icon">B</span>
+                <span>Bodeguita</span>
+            </a>
+
+            <div class="banner-content">
+
+                <span class="banner-tag">QUÉ BUENO TENERTE DE VUELTA</span>
+
+                <h1>
+                    Tus productos favoritos,
+                    <span>siempre cerca de ti.</span>
+                </h1>
+
+                <p>
+                    Ingresa a tu cuenta y continúa disfrutando
+                    de todo lo que Bodeguita tiene preparado para ti.
+                </p>
+
+            </div>
+
+            <div class="banner-footer">
+                <span>Tu tienda, tu espacio.</span>
+                <span>© 2026 Bodeguita</span>
+            </div>
+
+        </section>
+
+
+        <!-- Formulario de inicio de sesión -->
+        <section class="auth-content">
+
+            <div class="auth-card">
+
+                <div class="mobile-brand">
+                    <a href="/" class="brand-logo">
+                        <span class="brand-icon">B</span>
+                        <span>Bodeguita</span>
+                    </a>
+                </div>
+
+
+                <div class="form-heading">
+
+                    <span class="form-tag">BIENVENIDO DE NUEVO</span>
+
+                    <h2>Iniciar sesión</h2>
+
+                    <p>
+                        Introduce tus datos para acceder a tu cuenta.
+                    </p>
+
+                </div>
+
+
+                <form id="loginForm" class="auth-form">
+
+                    <div class="input-group">
+
+                        <label for="email">Correo electrónico</label>
+
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            placeholder="tucorreo@ejemplo.com"
+                            autocomplete="email"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label for="password">Contraseña</label>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Ingresa tu contraseña"
+                            autocomplete="current-password"
+                            required
+                        >
+
+                    </div>
+
+
+                    <button type="submit" class="btn-primary">
+                        Ingresar a mi cuenta
+                        <span aria-hidden="true">→</span>
+                    </button>
+
+                </form>
+
+
+                <p
+                    id="msg"
+                    class="error-msg"
+                    role="alert"
+                    aria-live="polite"
+                ></p>
+
+
+                <div class="auth-divider">
+                    <span>¿Todavía no tienes una cuenta?</span>
+                </div>
+
+
+                <p class="auth-switch">
+                    Regístrate gratis
+                    <a href="/register.html">Crear una cuenta</a>
+                </p>
+
+
+                <p class="auth-security">
+                    <span aria-hidden="true">🔒</span>
+                    Tu sesión está protegida.
+                </p>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <script src="/js/login.js"></script>
+
 </body>
+
 </html>

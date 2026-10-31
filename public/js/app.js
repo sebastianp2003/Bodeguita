@@ -1,8 +1,16 @@
-// public/js/app.js
-// Logica del catalogo. Nota de seguridad: usamos textContent (nunca
-// innerHTML con datos del servidor) para pintar informacion de productos.
-// Esto es una defensa en profundidad contra XSS (A03:2021) en el cliente,
-// complementaria al escape que ya hace el backend con express-validator.
+
+/*
+==================================================
+ BODEGUITA - FUNCIONAMIENTO DEL CATÁLOGO
+==================================================
+
+- Gestión de sesión.
+- Inicio y cierre de sesión.
+- Búsqueda de productos.
+- Visualización del catálogo.
+- Administración de productos.
+- Protección contra XSS mediante textContent.
+*/
 
 const navAuth = document.getElementById('navAuth');
 const productGrid = document.getElementById('productGrid');
@@ -13,111 +21,494 @@ const productForm = document.getElementById('productForm');
 const productMsg = document.getElementById('productMsg');
 
 let currentUser = null;
+let searchTimeout = null;
+
+
+/* =========================================
+   UTILIDADES
+========================================= */
+
+function createElement(tag, className, content) {
+    const element = document.createElement(tag);
+
+    if (className) {
+        element.className = className;
+    }
+
+    if (content !== undefined) {
+        element.textContent = content;
+    }
+
+    return element;
+}
+
+function formatPrice(price) {
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        maximumFractionDigits: 0
+    }).format(Number(price) || 0);
+}
+
+function showMessage(element, message, type = 'error') {
+    if (!element) return;
+
+    element.textContent = message;
+    element.className = type === 'success'
+        ? 'success-msg'
+        : 'error-msg';
+}
+
+
+/* =========================================
+   GESTIÓN DE SESIÓN
+========================================= */
 
 async function loadSession() {
-  const res = await fetch('/api/auth/session');
-  const data = await res.json();
-  if (data.authenticated) {
-    currentUser = data.user;
-    navAuth.innerHTML = '';
-    const span = document.createElement('span');
-    span.textContent = `Hola, ${currentUser.name} `;
-    const logoutBtn = document.createElement('button');
-    logoutBtn.textContent = 'Cerrar sesion';
-    logoutBtn.onclick = async () => {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.reload();
-    };
-    navAuth.appendChild(span);
-    navAuth.appendChild(logoutBtn);
 
-    if (currentUser.role === 'admin') {
-      adminPanel.classList.remove('hidden');
+    try {
+
+        const res = await fetch('/api/auth/session', {
+            credentials: 'same-origin'
+        });
+
+        if (!res.ok) {
+            throw new Error('No se pudo consultar la sesión.');
+        }
+
+        const data = await res.json();
+
+        if (data.authenticated) {
+
+            currentUser = data.user;
+
+            navAuth.replaceChildren();
+
+            const welcome = createElement(
+                'span',
+                'user-welcome',
+                `Hola, ${currentUser.name}`
+            );
+
+            const logoutBtn = createElement(
+                'button',
+                'logout-button',
+                'Cerrar sesión'
+            );
+
+            logoutBtn.type = 'button';
+
+            logoutBtn.addEventListener('click', logout);
+
+            navAuth.appendChild(welcome);
+            navAuth.appendChild(logoutBtn);
+
+            if (currentUser.role === 'admin' && adminPanel) {
+                adminPanel.classList.remove('hidden');
+            }
+
+        } else {
+
+            currentUser = null;
+
+            navAuth.replaceChildren();
+
+            const loginLink = createElement(
+                'a',
+                '',
+                'Iniciar sesión'
+            );
+
+            loginLink.href = '/login.html';
+
+            const registerLink = createElement(
+                'a',
+                '',
+                'Crear cuenta'
+            );
+
+            registerLink.href = '/register.html';
+
+            navAuth.appendChild(loginLink);
+            navAuth.appendChild(registerLink);
+
+            if (adminPanel) {
+                adminPanel.classList.add('hidden');
+            }
+
+        }
+
+    } catch (error) {
+
+        console.error('Error de sesión:', error);
+
+        currentUser = null;
+
+        if (navAuth) {
+            navAuth.replaceChildren();
+
+            const loginLink = createElement(
+                'a',
+                '',
+                'Iniciar sesión'
+            );
+
+            loginLink.href = '/login.html';
+
+            navAuth.appendChild(loginLink);
+        }
     }
-  } else {
-    navAuth.innerHTML = '';
-    const loginLink = document.createElement('a');
-    loginLink.href = '/login.html';
-    loginLink.textContent = 'Iniciar sesion';
-    const registerLink = document.createElement('a');
-    registerLink.href = '/register.html';
-    registerLink.textContent = 'Registrarme';
-    navAuth.appendChild(loginLink);
-    navAuth.appendChild(registerLink);
-  }
 }
+
+
+/* =========================================
+   CERRAR SESIÓN
+========================================= */
+
+async function logout() {
+
+    try {
+
+        const res = await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
+
+        if (!res.ok) {
+            throw new Error('No se pudo cerrar la sesión.');
+        }
+
+        window.location.href = '/login.html';
+
+    } catch (error) {
+
+        console.error('Error al cerrar sesión:', error);
+
+        alert('No fue posible cerrar la sesión. Intenta nuevamente.');
+    }
+}
+
+
+/* =========================================
+   MOSTRAR PRODUCTOS
+========================================= */
 
 function renderProducts(products) {
-  productGrid.innerHTML = '';
-  if (products.length === 0) {
-    const p = document.createElement('p');
-    p.textContent = 'No se encontraron productos.';
-    productGrid.appendChild(p);
-    return;
-  }
-  for (const prod of products) {
-    const card = document.createElement('div');
-    card.className = 'product-card';
 
-    const h3 = document.createElement('h3');
-    h3.textContent = prod.name; // textContent = seguro contra XSS
-    const desc = document.createElement('p');
-    desc.textContent = prod.description;
-    const price = document.createElement('p');
-    price.className = 'price';
-    price.textContent = `$${Number(prod.price).toLocaleString('es-CO')}`;
-    const stock = document.createElement('p');
-    stock.className = 'stock';
-    stock.textContent = `Stock: ${prod.stock} | Categoria: ${prod.category}`;
+    productGrid.replaceChildren();
 
-    card.appendChild(h3);
-    card.appendChild(desc);
-    card.appendChild(price);
-    card.appendChild(stock);
-    productGrid.appendChild(card);
-  }
+    if (!products || products.length === 0) {
+
+        const empty = createElement(
+            'div',
+            'empty-products'
+        );
+
+        const icon = createElement(
+            'span',
+            'empty-icon',
+            '🛍️'
+        );
+
+        const title = createElement(
+            'h3',
+            '',
+            'No encontramos productos'
+        );
+
+        const description = createElement(
+            'p',
+            '',
+            'Intenta buscar con otro nombre o categoría.'
+        );
+
+        empty.appendChild(icon);
+        empty.appendChild(title);
+        empty.appendChild(description);
+
+        productGrid.appendChild(empty);
+
+        return;
+    }
+
+    for (const prod of products) {
+
+        const card = createElement(
+            'article',
+            'product-card'
+        );
+
+        const imageArea = createElement(
+            'div',
+            'product-image-placeholder'
+        );
+
+        const imageIcon = createElement(
+            'span',
+            '',
+            '🛍️'
+        );
+
+        imageArea.appendChild(imageIcon);
+
+        const category = createElement(
+            'span',
+            'product-category',
+            prod.category || 'General'
+        );
+
+        const name = createElement(
+            'h3',
+            '',
+            prod.name
+        );
+
+        const description = createElement(
+            'p',
+            'product-description',
+            prod.description
+        );
+
+        const price = createElement(
+            'p',
+            'price',
+            formatPrice(prod.price)
+        );
+
+        const stock = createElement(
+            'p',
+            'stock',
+            `Disponibles: ${prod.stock}`
+        );
+
+        card.appendChild(imageArea);
+        card.appendChild(category);
+        card.appendChild(name);
+        card.appendChild(description);
+        card.appendChild(price);
+        card.appendChild(stock);
+
+        productGrid.appendChild(card);
+    }
 }
+
+
+/* =========================================
+   CARGAR PRODUCTOS
+========================================= */
 
 async function loadProducts(query = '') {
-  const url = query ? `/api/products?q=${encodeURIComponent(query)}` : '/api/products';
-  const res = await fetch(url);
-  const data = await res.json();
-  renderProducts(data.products || []);
+
+    if (!productGrid) return;
+
+    productGrid.setAttribute('aria-busy', 'true');
+
+    const loading = createElement(
+        'p',
+        'loading-products',
+        'Cargando productos...'
+    );
+
+    productGrid.replaceChildren(loading);
+
+    try {
+
+        const url = query
+            ? `/api/products?q=${encodeURIComponent(query)}`
+            : '/api/products';
+
+        const res = await fetch(url, {
+            credentials: 'same-origin'
+        });
+
+        if (!res.ok) {
+            throw new Error('No se pudieron cargar los productos.');
+        }
+
+        const data = await res.json();
+
+        renderProducts(data.products || []);
+
+    } catch (error) {
+
+        console.error('Error cargando productos:', error);
+
+        productGrid.replaceChildren();
+
+        const message = createElement(
+            'p',
+            'error-msg',
+            'No fue posible cargar los productos. Intenta nuevamente.'
+        );
+
+        productGrid.appendChild(message);
+
+    } finally {
+
+        productGrid.setAttribute('aria-busy', 'false');
+    }
 }
 
-searchBtn.addEventListener('click', () => loadProducts(searchInput.value.trim()));
-searchInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') loadProducts(searchInput.value.trim());
-});
+
+/* =========================================
+   BÚSQUEDA DE PRODUCTOS
+========================================= */
+
+if (searchBtn && searchInput) {
+
+    searchBtn.addEventListener('click', () => {
+
+        loadProducts(searchInput.value.trim());
+
+    });
+
+    searchInput.addEventListener('keydown', (event) => {
+
+        if (event.key === 'Enter') {
+
+            event.preventDefault();
+
+            loadProducts(searchInput.value.trim());
+        }
+    });
+
+    // Búsqueda automática mientras se escribe.
+
+    searchInput.addEventListener('input', () => {
+
+        clearTimeout(searchTimeout);
+
+        searchTimeout = setTimeout(() => {
+
+            loadProducts(searchInput.value.trim());
+
+        }, 350);
+    });
+}
+
+
+/* =========================================
+   AGREGAR PRODUCTOS - ADMINISTRADOR
+========================================= */
 
 if (productForm) {
-  productForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    productMsg.textContent = '';
-    const body = {
-      name: document.getElementById('p_name').value,
-      description: document.getElementById('p_description').value,
-      price: Number(document.getElementById('p_price').value),
-      category: document.getElementById('p_category').value,
-      stock: Number(document.getElementById('p_stock').value),
-    };
-    const res = await fetch('/api/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+
+    productForm.addEventListener('submit', async (event) => {
+
+        event.preventDefault();
+
+        if (!productMsg) return;
+
+        showMessage(productMsg, 'Registrando producto...');
+
+        const body = {
+
+            name: document.getElementById('p_name').value.trim(),
+
+            description: document.getElementById('p_description').value.trim(),
+
+            price: Number(document.getElementById('p_price').value),
+
+            category: document.getElementById('p_category').value.trim(),
+
+            stock: Number(document.getElementById('p_stock').value)
+
+        };
+
+        if (
+            !body.name ||
+            !body.description ||
+            !body.category ||
+            !Number.isFinite(body.price) ||
+            !Number.isFinite(body.stock) ||
+            body.price < 0 ||
+            body.stock < 0
+        ) {
+
+            showMessage(
+                productMsg,
+                'Verifica los datos ingresados.'
+            );
+
+            return;
+        }
+
+        const submitButton = productForm.querySelector(
+            'button[type="submit"]'
+        );
+
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = 'Guardando...';
+        }
+
+        try {
+
+            const res = await fetch('/api/products', {
+
+                method: 'POST',
+
+                credentials: 'same-origin',
+
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+
+                body: JSON.stringify(body)
+
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+
+                throw new Error(
+                    data.error || 'No se pudo agregar el producto.'
+                );
+            }
+
+            showMessage(
+                productMsg,
+                '¡Producto agregado correctamente!',
+                'success'
+            );
+
+            productForm.reset();
+
+            await loadProducts(
+                searchInput ? searchInput.value.trim() : ''
+            );
+
+        } catch (error) {
+
+            console.error('Error agregando producto:', error);
+
+            showMessage(
+                productMsg,
+                error.message || 'Ocurrió un error al registrar el producto.'
+            );
+
+        } finally {
+
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = '+ Agregar producto';
+            }
+        }
     });
-    const data = await res.json();
-    if (!res.ok) {
-      productMsg.textContent = data.error || 'Error al crear el producto.';
-      productMsg.style.color = '#dc2626';
-    } else {
-      productMsg.textContent = 'Producto agregado correctamente.';
-      productMsg.style.color = '#16a34a';
-      productForm.reset();
-      loadProducts();
-    }
-  });
 }
 
-loadSession();
-loadProducts();
+
+/* =========================================
+   INICIALIZACIÓN
+========================================= */
+
+async function initializeStore() {
+
+    await loadSession();
+
+    await loadProducts();
+
+}
+
+initializeStore();

@@ -1,7 +1,7 @@
 {
-  "name": "catalogo-seguro",
+  "name": "bodeguita",
   "version": "1.0.0",
-  "description": "Sistema de registro de usuarios + catalogo de productos, desarrollado aplicando buenas practicas de OWASP Top Ten.",
+  "description": "Bodeguita - Sistema de gestión de usuarios y catálogo de productos.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

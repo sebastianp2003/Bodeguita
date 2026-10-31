@@ -1,32 +1,32 @@
 // server.js
-// Punto de entrada de la aplicacion.
+// Punto de entrada de Bodeguita.
+// Configuración del servidor, seguridad, sesiones y rutas.
 
 require('dotenv').config();
+
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
 const SqliteStoreFactory = require('better-sqlite3-session-store');
 const helmet = require('helmet');
 
-const db = require('./config/db'); // misma conexion que ya usamos para todo
+const db = require('./config/db');
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 
-// Manejador de sesiones basado en better-sqlite3 (la misma dependencia que
-// ya usamos para el resto de la app). Evitamos asi depender del paquete
-// "sqlite3" / node-gyp, que arrastraba vulnerabilidades criticas en su
-// cadena de compilacion (ver npm audit -> hallazgo OWASP A06).
 const SqliteStore = SqliteStoreFactory(session);
 
 const app = express();
+
 const PORT = process.env.PORT || 3000;
 const isProd = process.env.NODE_ENV === 'production';
 
-// --- A05:2021 Configuracion de seguridad ---
-// Helmet agrega automaticamente cabeceras de seguridad HTTP:
-// Content-Security-Policy, X-Content-Type-Options, X-Frame-Options,
-// Strict-Transport-Security (cuando corre bajo HTTPS), etc.
-// Justo las cabeceras que analizamos como "faltantes" en la Fase 1.
+// ------------------------------------
+// CONFIGURACIÓN DE SEGURIDAD
+// ------------------------------------
+
+app.disable('x-powered-by');
+
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -36,56 +36,141 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", 'data:'],
         objectSrc: ["'none'"],
-        frameAncestors: ["'none'"],
-      },
-    },
+        frameAncestors: ["'none'"]
+      }
+    }
   })
 );
 
-// Oculta la cabecera X-Powered-By: Express (no dar pistas gratis de la
-// tecnologia usada, como vimos que SI revelaba Studio F con VTEX).
-app.disable('x-powered-by');
+// ------------------------------------
+// PROCESAMIENTO DE SOLICITUDES
+// ------------------------------------
 
-app.use(express.json({ limit: '50kb' })); // limite de tamano contra payloads abusivos
-app.use(express.urlencoded({ extended: false, limit: '50kb' }));
+app.use(express.json({
+  limit: '50kb'
+}));
 
-// --- Sesiones ---
+app.use(express.urlencoded({
+  extended: false,
+  limit: '50kb'
+}));
+
+// ------------------------------------
+// CONFIGURACIÓN DE SESIONES
+// ------------------------------------
+
+const sessionSecret = process.env.SESSION_SECRET;
+
+if (isProd && (!sessionSecret || sessionSecret.length < 32)) {
+  throw new Error(
+    'Debes configurar SESSION_SECRET con al menos 32 caracteres en producción.'
+  );
+}
+
+if (!sessionSecret) {
+  console.warn(
+    'ADVERTENCIA: Configura SESSION_SECRET en tu archivo .env antes de desplegar.'
+  );
+}
+
 app.use(
   session({
-    store: new SqliteStore({ client: db, expired: { clear: true, intervalMs: 15 * 60 * 1000 } }),
+    store: new SqliteStore({
+      client: db,
+      expired: {
+        clear: true,
+        intervalMs: 15 * 60 * 1000
+      }
+    }),
+
     name: 'connect.sid',
-    secret: process.env.SESSION_SECRET || 'CAMBIA_ESTE_SECRETO_EN_PRODUCCION',
+
+    secret: sessionSecret || 'SECRETO-SOLO-PARA-DESARROLLO-NO-USAR-EN-PRODUCCION',
+
     resave: false,
     saveUninitialized: false,
+
     cookie: {
-      httpOnly: true, // la cookie no es accesible desde JavaScript (mitiga robo via XSS)
-      sameSite: 'lax', // mitiga CSRF basico en peticiones cross-site
-      secure: isProd, // solo se envia por HTTPS en produccion
-      maxAge: 1000 * 60 * 60 * 2, // 2 horas
-    },
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: isProd,
+      maxAge: 1000 * 60 * 60 * 2
+    }
   })
 );
 
-// --- Rutas de la API ---
+// ------------------------------------
+// RUTAS DE LA API
+// ------------------------------------
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 
-// --- Frontend estatico ---
-app.use(express.static(path.join(__dirname, 'public')));
+// ------------------------------------
+// PÁGINA PRINCIPAL
+// ------------------------------------
 
-// --- 404 para rutas de API no encontradas ---
+app.get('/', (req, res) => {
+  if (req.session && req.session.userId) {
+    return res.redirect('/index.html');
+  }
+
+  return res.redirect('/register.html');
+});
+
+// ------------------------------------
+// ARCHIVOS DEL FRONTEND
+// ------------------------------------
+
+app.use(
+  express.static(path.join(__dirname, 'public'), {
+    index: false,
+    dotfiles: 'deny'
+  })
+);
+
+// ------------------------------------
+// RUTAS API NO ENCONTRADAS
+// ------------------------------------
+
 app.use('/api', (req, res) => {
-  res.status(404).json({ error: 'Recurso no encontrado.' });
+  res.status(404).json({
+    error: 'Recurso no encontrado.'
+  });
 });
 
-// --- Manejador de errores centralizado ---
-// A05:2021 - nunca se devuelve el stack trace ni detalles internos al
-// cliente; eso facilitaria el reconocimiento del sistema a un atacante.
-app.use((err, req, res, next) => {
-  console.error(err); // el detalle solo queda en el log del servidor
-  res.status(500).json({ error: 'Ocurrio un error interno. Intenta de nuevo mas tarde.' });
+// ------------------------------------
+// RUTAS NO ENCONTRADAS
+// ------------------------------------
+
+app.use((req, res) => {
+  res.status(404).send('Página no encontrada.');
 });
+
+// ------------------------------------
+// MANEJADOR DE ERRORES
+// ------------------------------------
+
+app.use((err, req, res, next) => {
+  console.error('Error interno:', err);
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  res.status(500).json({
+    error: 'Ocurrió un error interno. Intenta nuevamente más tarde.'
+  });
+});
+
+// ------------------------------------
+// INICIAR SERVIDOR
+// ------------------------------------
 
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  console.log('===================================');
+  console.log('       BODEGUITA INICIADA');
+  console.log('===================================');
+  console.log(`Servidor: http://localhost:${PORT}`);
+  console.log(`Entorno: ${isProd ? 'Producción' : 'Desarrollo'}`);
 });

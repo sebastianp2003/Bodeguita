@@ -1,42 +1,135 @@
 // config/seed.js
-// Crea un usuario administrador inicial y algunos productos de ejemplo.
+// Inicialización de Bodeguita.
+// Crea un administrador inicial y productos de demostración.
 // Ejecutar con: npm run seed
+
+require('dotenv').config();
 
 const bcrypt = require('bcrypt');
 const db = require('./db');
 
-const SALT_ROUNDS = 12; // factor de costo recomendado para bcrypt en 2024+
+const SALT_ROUNDS = 12;
 
-function seed() {
-  const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@catalogo.test');
+async function seed() {
+  try {
+    const adminName = process.env.ADMIN_NAME || 'Administrador';
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
-  if (!existingAdmin) {
-    const hash = bcrypt.hashSync('Admin123!Seguro', SALT_ROUNDS);
-    db.prepare(
-      'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)'
-    ).run('Administrador', 'admin@catalogo.test', hash, 'admin');
-    console.log('Usuario admin creado -> admin@catalogo.test / Admin123!Seguro');
-  } else {
-    console.log('El usuario admin ya existia, no se duplico.');
-  }
+    if (!adminEmail || !adminPassword) {
+      throw new Error(
+        'Configura ADMIN_EMAIL y ADMIN_PASSWORD en el archivo .env antes de ejecutar el seed.'
+      );
+    }
 
-  const count = db.prepare('SELECT COUNT(*) AS c FROM products').get().c;
-  if (count === 0) {
-    const admin = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@catalogo.test');
-    const insert = db.prepare(
-      'INSERT INTO products (name, description, price, category, stock, created_by) VALUES (?, ?, ?, ?, ?, ?)'
-    );
-    const productos = [
-      ['Camiseta basica', 'Camiseta de algodon 100%, varios colores', 39900, 'ropa', 50],
-      ['Jean clasico', 'Jean corte recto, talla S a XL', 129900, 'ropa', 30],
-      ['Zapatillas urbanas', 'Zapatillas para uso diario, suela de goma', 189900, 'calzado', 20],
-      ['Mochila escolar', 'Mochila resistente al agua, 20L', 89900, 'accesorios', 15],
-      ['Gorra deportiva', 'Gorra ajustable, proteccion UV', 29900, 'accesorios', 40],
-    ];
-    for (const p of productos) insert.run(...p, admin.id);
-    console.log(`${productos.length} productos de ejemplo insertados.`);
-  } else {
-    console.log('Ya existian productos, no se insertaron de nuevo.');
+    if (adminPassword.length < 8 ||
+        !/[A-Z]/.test(adminPassword) ||
+        !/[a-z]/.test(adminPassword) ||
+        !/[0-9]/.test(adminPassword)) {
+      throw new Error(
+        'La contraseña del administrador debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.'
+      );
+    }
+
+    // Buscar administrador existente.
+    let admin = db
+      .prepare('SELECT id FROM users WHERE email = ?')
+      .get(adminEmail);
+
+    // Crear administrador solamente si no existe.
+    if (!admin) {
+      const hash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+
+      const info = db
+        .prepare(`
+          INSERT INTO users (name, email, password_hash, role)
+          VALUES (?, ?, ?, ?)
+        `)
+        .run(adminName, adminEmail, hash, 'admin');
+
+      admin = { id: info.lastInsertRowid };
+
+      console.log('Administrador inicial creado correctamente.');
+    } else {
+      console.log('El administrador ya existe. No se modificaron sus datos.');
+    }
+
+    // Insertar productos de demostración solamente si no existen.
+    const count = db
+      .prepare('SELECT COUNT(*) AS total FROM products')
+      .get().total;
+
+    if (count === 0) {
+      const insert = db.prepare(`
+        INSERT INTO products (
+          name,
+          description,
+          price,
+          category,
+          stock,
+          created_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+
+      const products = [
+        [
+          'Camiseta básica',
+          'Camiseta de algodón 100%, disponible en varios colores.',
+          39900,
+          'ropa',
+          50
+        ],
+        [
+          'Jean clásico',
+          'Jean de corte recto, disponible en tallas S a XL.',
+          129900,
+          'ropa',
+          30
+        ],
+        [
+          'Zapatillas urbanas',
+          'Zapatillas cómodas para uso diario con suela de goma.',
+          189900,
+          'calzado',
+          20
+        ],
+        [
+          'Mochila escolar',
+          'Mochila resistente al agua con capacidad de 20 litros.',
+          89900,
+          'accesorios',
+          15
+        ],
+        [
+          'Gorra deportiva',
+          'Gorra ajustable con protección UV.',
+          29900,
+          'accesorios',
+          40
+        ]
+      ];
+
+      const insertMany = db.transaction((items) => {
+        for (const product of items) {
+          insert.run(...product, admin.id);
+        }
+      });
+
+      insertMany(products);
+
+      console.log(`${products.length} productos de ejemplo insertados.`);
+    } else {
+      console.log('Ya existen productos. No se insertaron duplicados.');
+    }
+
+    console.log('Inicialización de Bodeguita completada.');
+
+  } catch (error) {
+    console.error('Error durante la inicialización:', error.message);
+    process.exitCode = 1;
+  } finally {
+    db.close();
   }
 }
 
